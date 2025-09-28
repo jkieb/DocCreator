@@ -1,714 +1,404 @@
 # Erklärung des Codes
 
-Dieses Dokument erklärt 17 Segmente. Jedes Kapitel enthält eine kurze Erklärung, Besonderheiten, Hinweise und Schnittstellen.
+Dieses Dokument erklärt 10 Segmente. Jedes Kapitel enthält eine kurze Erklärung, Besonderheiten, Hinweise und Schnittstellen.
 
 ## Inhalt
 
 - [1. Imports](#1-imports)
-- [2. Model Configuration](#2-model-configuration)
-- [3. Load Backbone Function](#3-load-backbone-function)
-- [4. Dataset Class](#4-dataset-class)
-- [5. Load Cached DataFrame Function](#5-load-cached-dataframe-function)
-- [6. Streamlit UI Setup](#6-streamlit-ui-setup)
-- [7. Add Customer Logic](#7-add-customer-logic)
-- [8. Upload Table Logic](#8-upload-table-logic)
-- [9. Load CSV Logic](#9-load-csv-logic)
-- [10. Temporary Info Message](#10-temporary-info-message)
-- [11. Display Data Logic](#11-display-data-logic)
-- [12. Training Parameters Setup](#12-training-parameters-setup)
-- [13. Data Preparation](#13-data-preparation)
-- [14. Model Training Logic](#14-model-training-logic)
-- [15. Evaluation Logic](#15-evaluation-logic)
-- [16. Classification Report Logic](#16-classification-report-logic)
-- [17. Download Functionality](#17-download-functionality)
+- [2. Konfiguration](#2-konfiguration)
+- [3. Main-Block](#3-main-block)
+- [4. Hilfsblöcke](#4-hilfsblöcke)
+- [5. I/O](#5-i-o)
+- [6. Datenmodelle](#6-datenmodelle)
+- [7. Markdown: Header + TOC](#7-markdown-header-toc)
+- [8. Hilfsblöcke](#8-hilfsblöcke)
+- [9. I/O](#9-i-o)
+- [10. Footer + Schreiben](#10-footer-schreiben)
 
 ### 1. Imports
 ```python
-import streamlit as st
-import pandas as pd
-import os
-from datetime import datetime
-from torch.utils.data import Dataset, DataLoader
-import torch
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from torch import nn
-import time
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, classification_report
-from sklearn.preprocessing import LabelEncoder
+import os, sys, json, time, textwrap
+from dotenv import load_dotenv
+from openai import OpenAI
 ```
 **Erklärung**
-- Dieses Segment importiert essentielle Bibliotheken und Module, die für die Funktionalität der Anwendung erforderlich sind.
-- Die Imports decken verschiedene Bereiche ab, darunter Datenverarbeitung (Pandas, NumPy), maschinelles Lernen (Torch, Sentence Transformers, Scikit-Learn) und Webanwendungen (Streamlit).
-- Jedes Modul wird für spezifische Aufgaben verwendet, wie z.B. Datenmanipulation, Modelltraining und -bewertung sowie die Erstellung von Benutzeroberflächen.
-- Die Verwendung dieser Bibliotheken ermöglicht eine modulare und wartbare Struktur der Anwendung.
+- Dieses Code-Segment importiert essentielle Bibliotheken und Module, die für die Funktionalität des Skripts erforderlich sind.
+- `os` und `sys` ermöglichen den Zugriff auf Betriebssystemfunktionen und Systemparameter.
+- `json` wird verwendet, um JSON-Daten zu verarbeiten, während `time` Funktionen zur Zeitmessung bereitstellt.
+- `textwrap` hilft bei der Formatierung von Text, und `dotenv` lädt Umgebungsvariablen aus einer `.env`-Datei.
+- Das `OpenAI`-Modul ermöglicht die Interaktion mit OpenAI-Diensten, was für KI-Anwendungen wichtig ist.
 
 **Besonderheiten & Randfälle**
-- Die Importreihenfolge kann die Ausführung beeinflussen, insbesondere bei Abhängigkeiten zwischen Modulen.
-- Einige Module (z.B. Torch) benötigen spezifische Hardware (GPU) für optimale Leistung.
-- Bei fehlenden Modulen kann es zu ImportError kommen, was die Anwendung zum Absturz bringen kann.
-- Versionskonflikte zwischen Bibliotheken können unerwartete Fehler verursachen.
-- Bestimmte Module (wie Streamlit) erfordern eine spezifische Umgebung (z.B. Webserver), um korrekt zu funktionieren.
-- Die Verwendung von `os` kann plattformabhängige Probleme verursachen, wenn Pfade nicht korrekt behandelt werden.
+- Die Verwendung von `dotenv` erfordert eine `.env`-Datei, die vorhanden sein muss, um Umgebungsvariablen korrekt zu laden.
+- Fehlende Module führen zu ImportError, was das Skript zum Absturz bringen kann.
+- `os` und `sys` können plattformabhängige Unterschiede aufweisen, was zu unerwartetem Verhalten führen kann.
+- Bei der Verarbeitung von JSON-Daten kann es zu `JSONDecodeError` kommen, wenn die Daten nicht im richtigen Format vorliegen.
+- `textwrap` hat Einschränkungen bei der Verarbeitung von Unicode-Zeichen, was zu unerwarteten Ergebnissen führen kann.
+- Die `time`-Funktionen können in verschiedenen Zeitzonen unterschiedliche Ergebnisse liefern.
 
 **Hinweise**
-- Achten Sie darauf, die Bibliotheken regelmäßig zu aktualisieren, um Sicherheitslücken zu schließen.
-- Verwenden Sie virtuelle Umgebungen, um Abhängigkeiten zu isolieren und Konflikte zu vermeiden.
-- Überprüfen Sie die Dokumentation der Bibliotheken auf Änderungen in der API, die die Wartung beeinflussen könnten.
-- Optimieren Sie die Importanweisungen, um nur benötigte Module zu laden und die Startzeit der Anwendung zu verkürzen.
+- Achten Sie darauf, nur die benötigten Module zu importieren, um die Skriptgröße und Ladezeit zu optimieren.
+- Verwenden Sie `try-except`-Blöcke, um Importfehler abzufangen und eine benutzerfreundliche Fehlermeldung anzuzeigen.
+- Halten Sie die `.env`-Datei sicher, um sensible Informationen wie API-Schlüssel zu schützen.
+- Regelmäßige Updates der importierten Bibliotheken sind wichtig, um Sicherheitslücken zu schließen.
 
 **Schnittstellen**
-- Die importierten Module stellen Funktionen und Klassen bereit, die in anderen Segmenten zur Datenverarbeitung, Modelltraining und Benutzerinteraktion verwendet werden.
-- Beispielsweise wird `pandas` für die Datenmanipulation und `torch` für das maschinelle Lernen in nachfolgenden Segmenten benötigt.
+- Die Imports stellen keine direkten Inputs oder Outputs bereit, sind jedoch Voraussetzung für die Funktionalität anderer Segmente, die auf die importierten Module zugreifen.
 
-### 2. Model Configuration
+### 2. Konfiguration
 ```python
-class Model(nn.Module):
-    def __init__(self, backbone: SentenceTransformer, hidden_dim: int, n_products: int, n_prios: int):
-        super().__init__()
-        self.backbone   = backbone
-        emb_dim         = backbone.get_sentence_embedding_dimension()
-        self.shared     = nn.Linear(emb_dim, hidden_dim)
-        self.product_head = nn.Linear(hidden_dim, n_products)
-        self.prio_head  = nn.Linear(hidden_dim, n_prios)
-
-    def forward(self, features, task_id: int):
-        if isinstance(features, torch.Tensor):
-            embeddings = features
-        elif isinstance(features, (list, str)):
-            embeddings = self.backbone.encode(features, convert_to_tensor=True)
-        else:
-            output = self.backbone(features)
-            if isinstance(output, dict):
-                embeddings = output.get(
-                    'sentence_embedding',
-                    next(iter(output.values()))
-                )
-            else:
-                embeddings = output
-        h = torch.relu(self.shared(embeddings))
-        return self.product_head(h) if task_id == 0 else self.prio_head(h)
+load_dotenv()
+model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 ```
 **Erklärung**
-- Dieses Code-Segment definiert ein neuronales Netzwerk-Modell in PyTorch, das auf einem vortrainierten SentenceTransformer basiert.
-- Im Konstruktor (`__init__`) werden die Netzwerkarchitektur und die erforderlichen Schichten initialisiert, einschließlich einer gemeinsamen Schicht und zwei Ausgabeschichten für Produkte und Prioritäten.
-- Die `forward`-Methode verarbeitet Eingabedaten, die entweder als Tensor, Liste oder String vorliegen können, und gibt die entsprechenden Vorhersagen basierend auf dem `task_id` zurück.
+- Dieses Code-Segment lädt Umgebungsvariablen aus einer `.env`-Datei, um Konfigurationseinstellungen für die OpenAI API zu definieren.
+- Es setzt das Modell auf einen Standardwert ("gpt-4o-mini"), falls die Umgebungsvariable `OPENAI_MODEL` nicht gesetzt ist.
+- Die Temperatur, die die Kreativität der API-Ausgaben steuert, wird ebenfalls aus einer Umgebungsvariable geladen und in einen Float umgewandelt, wobei ein Standardwert von 0.2 verwendet wird.
 
 **Besonderheiten & Randfälle**
-- Unterstützung für verschiedene Eingabetypen (Tensor, Liste, String).
-- Verwendung von `torch.relu` zur Aktivierung der gemeinsamen Schicht.
-- Dynamische Auswahl der Ausgabeschicht basierend auf `task_id`.
-- Möglichkeit, dass die `backbone`-Ausgabe ein Dictionary ist, was zusätzliche Flexibilität bietet.
-- Fehlerbehandlung für unerwartete Eingabetypen ist nicht implementiert.
-- Abhängigkeit von der korrekten Dimensionierung der Eingabedaten.
+- Wenn die `.env`-Datei nicht vorhanden ist, werden die Standardwerte verwendet.
+- Ungültige Werte für `OPENAI_TEMPERATURE` führen zu einem Fehler bei der Umwandlung in einen Float.
+- Das Modell kann auf nicht unterstützte Werte gesetzt werden, was zu unerwartetem Verhalten führen kann.
+- Umgebungsvariablen sind typischerweise nicht typisiert, was zu Laufzeitfehlern führen kann.
+- Die Verwendung von Standardwerten kann die Flexibilität verringern, wenn spezifische Modelle benötigt werden.
+- Änderungen an der `.env`-Datei erfordern einen Neustart der Anwendung, um wirksam zu werden.
 
 **Hinweise**
-- Achten Sie auf die Dimensionen der Eingabedaten, um Dimensionierungsfehler zu vermeiden.
-- Bei der Verwendung von `SentenceTransformer` sollte sichergestellt werden, dass das Modell korrekt geladen ist.
-- Die Performance kann durch Batch-Verarbeitung der Eingabedaten verbessert werden.
-- Regelmäßige Wartung und Updates des `backbone`-Modells sind empfehlenswert, um die Genauigkeit zu gewährleisten.
+- Achten Sie darauf, die `.env`-Datei nicht in Versionskontrollsysteme einzuschließen, um sensible Daten zu schützen.
+- Überprüfen Sie die Umgebungsvariablen beim Start der Anwendung, um sicherzustellen, dass alle erforderlichen Werte gesetzt sind.
+- Verwenden Sie Typprüfungen, um sicherzustellen, dass die Umgebungsvariablen gültige Werte enthalten.
+- Dokumentieren Sie die erforderlichen Umgebungsvariablen klar, um die Wartung zu erleichtern.
 
 **Schnittstellen**
-- **Input:** `features` (Tensor, Liste oder String) und `task_id` (int).
-- **Output:** Vorhersageergebnisse aus `product_head` oder `prio_head`, abhängig von `task_id`.
+- **Input:** Umgebungsvariablen `OPENAI_MODEL` und `OPENAI_TEMPERATURE`.
+- **Output:** Variablen `model` und `temperature`, die in anderen Segmenten zur Konfiguration der API verwendet werden.
 
-### 3. Load Backbone Function
+### 3. Main-Block
 ```python
-@st.cache_resource(show_spinner="Lade Basis-Modell...")
-def load_backbone(model_name="paraphrase-multilingual-MiniLM-L12-v2"):
-    return SentenceTransformer(model_name)
+if len(sys.argv) < 3:
+    print("Verwendung: python segment_and_explain_linear.py <pfad_zur_datei.py> <output.md>")
+    sys.exit(1)
+
+pfad_code = sys.argv[1]
+pfad_md   = sys.argv[2]
+
+with open(pfad_code, "r", encoding="utf-8") as f:
+    full_code = f.read()
+
+client = OpenAI()
 ```
 **Erklärung**
-- Die Funktion `load_backbone` lädt ein vortrainiertes Modell der Klasse `SentenceTransformer`, das für die Verarbeitung von Texten verwendet wird.
-- Durch die Verwendung von `@st.cache_resource` wird das Modell im Cache gespeichert, um die Ladezeiten bei wiederholten Aufrufen zu reduzieren.
-- Der Parameter `model_name` ermöglicht es, verschiedene Modelle zu laden, wobei der Standardwert auf ein multilinguales Modell gesetzt ist.
-- Der Spinner zeigt dem Benutzer an, dass das Modell geladen wird, was die Benutzererfahrung verbessert.
+- Der Main-Block überprüft, ob mindestens zwei Argumente (Dateipfad und Ausgabedatei) über die Kommandozeile übergeben wurden.
+- Bei unzureichenden Argumenten wird eine Fehlermeldung ausgegeben und das Programm beendet.
+- Der Code aus der angegebenen Datei wird eingelesen und in der Variable `full_code` gespeichert.
+- Anschließend wird ein OpenAI-Client initialisiert, um weitere Funktionen auszuführen.
 
 **Besonderheiten & Randfälle**
-- Das Caching funktioniert nur, wenn die Funktion mit denselben Parametern aufgerufen wird.
-- Bei ungültigen Modellnamen wird eine Ausnahme ausgelöst, die behandelt werden sollte.
-- Die Funktion ist nicht thread-sicher; parallele Aufrufe könnten zu unerwartetem Verhalten führen.
-- Der Cache kann bei Änderungen am Modell oder den Parametern ungültig werden.
-- Bei großen Modellen kann der Speicherbedarf erheblich sein, was zu Performance-Problemen führen kann.
-- Die Ladezeit kann je nach Netzwerkgeschwindigkeit und Modellgröße variieren.
+- Fehlende Argumente führen zu einem sofortigen Programmabbruch.
+- Der Dateipfad muss existieren; andernfalls wird eine Fehlermeldung (FileNotFoundError) ausgelöst.
+- Die Datei wird im UTF-8-Format geöffnet; andere Kodierungen könnten zu Fehlern führen.
+- Der OpenAI-Client benötigt möglicherweise spezifische API-Schlüssel oder Konfigurationen, die hier nicht behandelt werden.
+- Bei großen Dateien könnte der Lesevorgang viel Speicher benötigen.
+- Es wird nicht überprüft, ob die Datei tatsächlich Python-Code enthält.
 
 **Hinweise**
-- Um die Performance zu optimieren, sollten nur benötigte Modelle geladen werden.
-- Sicherheitsaspekte sollten beachtet werden, insbesondere bei der Verwendung von externen Modellen.
-- Regelmäßige Wartung des Caches ist empfohlen, um veraltete Modelle zu entfernen.
-- Überwachung der Speichernutzung ist wichtig, um Engpässe zu vermeiden.
+- Um die Performance zu verbessern, könnte eine Lazy-Loading-Strategie für große Dateien in Betracht gezogen werden.
+- Sicherheitsaspekte wie die Validierung des Dateipfades sollten implementiert werden, um Directory Traversal-Angriffe zu vermeiden.
+- Eine Fehlerbehandlung für das Öffnen der Datei könnte hinzugefügt werden, um robustere Anwendungen zu erstellen.
+- Regelmäßige Wartung und Updates des OpenAI-Clients sind erforderlich, um mit API-Änderungen Schritt zu halten.
 
 **Schnittstellen**
-- **Input:** `model_name` (String) – Name des zu ladenden Modells.
-- **Output:** Instanz von `SentenceTransformer` – Das geladene Modell für die Textverarbeitung.
+- **Input:** `sys.argv` für Kommandozeilenargumente (Dateipfad und Ausgabedatei).
+- **Output:** `full_code` enthält den eingelesenen Code, der für weitere Verarbeitung verwendet werden kann.
 
-### 4. Dataset Class
+### 4. Hilfsblöcke
 ```python
-class Dataset(Dataset):
-    def __init__(self, X, y, w=None):
-        if isinstance(X, torch.Tensor):
-            self.X = X.float()
-        else:
-            self.X = torch.from_numpy(X.astype(np.float32))
-        if isinstance(y, torch.Tensor):
-            self.y = y.long()
-        else:
-            self.y = torch.from_numpy(y.astype(np.int64))
-        if w is not None:
-            if isinstance(w, torch.Tensor):
-                self.w = w.float()
-            else:
-                self.w = torch.from_numpy(w.astype(np.float32))
-        else:
-            self.w = None
+system_msg_seg = (
+    "Du segmentierst Python-Code in LOGISCHE EINHEITEN. "
+    "Gib ausschließlich JSON zurück mit dem Key 'segments'. "
+    "Jedes Segment hat: title (kurz), code (genauer Textblock als String), rationale (1 Satz). "
+    "Segmentiere grob nach Imports, Konfiguration, Datenmodelle, Funktionen/Klassen, Main-Block, I/O, Hilfsblöcke. "
+    "Keine zusätzlichen Texte, keine Formatierung außerhalb des JSON."
+)
 
-    def __len__(self): return len(self.y)
-
-    def __getitem__(self, idx):
-        if self.w is not None:
-            return self.X[idx], self.y[idx], self.w[idx]
-        return self.X[idx], self.y[idx]
-```
-**Erklärung**
-- Die `Dataset`-Klasse dient zur Erstellung eines benutzerdefinierten Datasets für maschinelles Lernen, das Daten in Form von Eingabematrizen `X`, Zielwerten `y` und optionalen Gewichten `w` lädt.
-- Im Konstruktor (`__init__`) werden die Eingabedaten in Tensoren umgewandelt, um sicherzustellen, dass sie im richtigen Format für PyTorch vorliegen.
-- Die Methoden `__len__` und `__getitem__` ermöglichen die Interaktion mit der Klasse, indem sie die Länge des Datasets zurückgeben und den Zugriff auf spezifische Datenelemente ermöglichen.
-
-**Besonderheiten & Randfälle**
-- Unterstützung für Eingaben sowohl als NumPy-Arrays als auch als PyTorch-Tensoren.
-- Konvertierung von Datentypen (z.B. `float32` für `X` und `int64` für `y`).
-- Optionale Gewichte `w`, die ebenfalls als Tensoren oder NumPy-Arrays übergeben werden können.
-- Fehlerbehandlung bei ungültigen Datentypen ist nicht implementiert.
-- Bei `None`-Werten für `w` wird eine alternative Rückgabe in `__getitem__` verwendet.
-- Die Klasse erfordert, dass `X` und `y` die gleiche Länge haben.
-
-**Hinweise**
-- Achten Sie auf die Konsistenz der Datentypen, um Laufzeitfehler zu vermeiden.
-- Die Verwendung von `torch.from_numpy` kann zu Speicherproblemen führen, wenn die NumPy-Arrays nicht im richtigen Format sind.
-- Die Klasse könnte um Validierungslogik erweitert werden, um sicherzustellen, dass die Eingabedaten korrekt sind.
-- Bei großen Datensätzen kann die Umwandlung in Tensoren speicherintensiv sein; eine Lazy-Loading-Strategie könnte in Betracht gezogen werden.
-
-**Schnittstellen**
-- Eingaben: `X` (Features), `y` (Labels), `w` (optionale Gewichte).
-- Ausgaben: Zugriff auf Datenelemente über `__getitem__`, Rückgabe von Tupeln `(X[idx], y[idx], w[idx])` oder `(X[idx], y[idx])`.
-
-### 5. Load Cached DataFrame Function
-```python
-@st.cache_data
-def load_cached_dataframe(file_path: str, source: str = "local"):
-    if source == "local":
-        return pd.read_csv(file_path)
-    else:
-        return file_path
-```
-**Erklärung**
-- Die Funktion `load_cached_dataframe` lädt ein DataFrame aus einer CSV-Datei und nutzt Caching, um die Leistung zu optimieren.
-- Sie akzeptiert zwei Parameter: `file_path`, der den Pfad zur CSV-Datei angibt, und `source`, der standardmäßig auf "local" gesetzt ist.
-- Wenn die Quelle "local" ist, wird die CSV-Datei mit `pd.read_csv` geladen; andernfalls wird der `file_path` direkt zurückgegeben.
-- Das Caching ermöglicht eine schnellere Datenverarbeitung bei wiederholtem Zugriff auf dieselbe Datei.
-
-**Besonderheiten & Randfälle**
-- Funktioniert nur mit lokalen CSV-Dateien, wenn `source` auf "local" gesetzt ist.
-- Bei ungültigem `file_path` kann ein Fehler beim Laden der Datei auftreten.
-- Wenn `source` nicht "local" ist, wird kein DataFrame geladen, sondern nur der Pfad zurückgegeben.
-- Caching kann bei Änderungen der CSV-Datei zu veralteten Daten führen, wenn nicht neu geladen wird.
-- Die Funktion unterstützt keine anderen Dateiformate außer CSV.
-- Es gibt keine Fehlerbehandlung für fehlgeschlagene Lesevorgänge.
-
-**Hinweise**
-- Caching verbessert die Leistung, sollte jedoch mit Bedacht verwendet werden, um veraltete Daten zu vermeiden.
-- Bei großen CSV-Dateien kann der Speicherbedarf erheblich sein; daher sollte der verfügbare Speicherplatz berücksichtigt werden.
-- Sicherheitsaspekte sollten beachtet werden, insbesondere bei der Verarbeitung von Daten aus unsicheren Quellen.
-- Regelmäßige Wartung und Überprüfung der CSV-Dateien sind notwendig, um Datenintegrität sicherzustellen.
-
-**Schnittstellen**
-- **Input**: `file_path` (String), `source` (String, optional).
-- **Output**: DataFrame (bei `source` = "local") oder String (bei anderen Quellen).
-
-### 6. Streamlit UI Setup
-```python
-st.title("👟 Allgemeines Training")
-if 'uploader_key' not in st.session_state:
-    st.session_state.uploader_key = 0
-st.subheader("➕ Neuen Kunden hinzufügen")
-with st.form("add_row_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        kundename = st.text_input("Kundename", placeholder="z.B. TechCorp GmbH")
-        land = st.selectbox("Land", ["Deutschland", "USA", "Frankreich", "UK", "Spanien", "Italien", "Schweiz", "Österreich", "Niederlande", "Belgien"])
-        zeit = st.text_input("Zeit", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    with col2:
-        prioritaet = st.selectbox("Priorität", ["Hoch", "Mittel", "Niedrig"])
-        description = st.text_area("Beschreibung", height=100, placeholder="Beschreibung des Anliegens...")
-    submitted = st.form_submit_button("Kunden hinzufügen")
-```
-**Erklärung**
-- Dieses Segment richtet die Benutzeroberfläche für die Streamlit-Anwendung ein, um neue Kunden hinzuzufügen.
-- Es wird ein Titel und eine Unterüberschrift gesetzt, gefolgt von einem Formular, das Eingabefelder für Kundendaten bereitstellt.
-- Die Eingabefelder umfassen den Kundennamen, das Land, die Zeit, die Priorität und eine Beschreibung.
-- Das Formular ermöglicht es dem Benutzer, die eingegebenen Daten zu überprüfen und zu bestätigen, bevor sie gespeichert werden.
-
-**Besonderheiten & Randfälle**
-- Überprüfung, ob der `uploader_key` im `session_state` vorhanden ist, um den Zustand zwischen den Sitzungen zu speichern.
-- Verwendung von `datetime.now()` zur automatischen Zeitstempelung, was zu inkonsistenten Zeitformaten führen kann, wenn nicht richtig behandelt.
-- Platzhaltertexte in den Eingabefeldern bieten zusätzliche Hinweise zur erwarteten Eingabe.
-- Die Auswahlmöglichkeiten für das Land und die Priorität sind festgelegt, was die Eingabe vereinfacht, aber auch die Flexibilität einschränkt.
-- Das Formular wird nur abgesendet, wenn der Benutzer auf den Button klickt, was eine bewusste Entscheidung zur Dateneingabe erfordert.
-- Mögliche Probleme bei der Validierung der Eingaben sind nicht behandelt.
-
-**Hinweise**
-- Achten Sie darauf, die Eingaben auf Validität zu überprüfen, um unerwartete Fehler zu vermeiden.
-- Berücksichtigen Sie die Performance, wenn viele Benutzer gleichzeitig auf das Formular zugreifen.
-- Sensible Daten sollten sicher gespeichert und verarbeitet werden, um Datenschutzrichtlinien einzuhalten.
-- Regelmäßige Wartung des Codes und der Benutzeroberfläche ist erforderlich, um die Benutzerfreundlichkeit zu gewährleisten.
-
-**Schnittstellen**
-- Eingaben aus diesem Segment werden wahrscheinlich an eine Datenbank oder ein Backend-System zur Speicherung der Kundendaten weitergeleitet.
-- Die `session_state`-Verwendung ermöglicht die Interaktion mit anderen Segmenten, die möglicherweise auf den `uploader_key` zugreifen.
-
-### 7. Add Customer Logic
-```python
-if submitted:
-    if kundename.strip() and description.strip():
-        try:
-            new_row = pd.DataFrame({
-                'Kundename': [kundename],
-                'Land': [land],
-                'Zeit': [zeit],
-                'Priorität': [prioritaet],
-                'description': [description]
-            })
-            if 'df' in st.session_state:
-                st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
-            else:
-                st.session_state.df = new_row
-            if os.path.exists(local_csv_path):
-                try:
-                    existing_df = pd.read_csv(local_csv_path)
-                    updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-                    updated_df.to_csv(local_csv_path, index=False)
-                    st.success("✅ Kunde erfolgreich hinzugefügt und gespeichert!")
-                except Exception as e:
-                    st.warning(f"⚠️ Kunde hinzugefügt, aber Speicherung fehlgeschlagen: {e}")
-            else:
-                new_row.to_csv(local_csv_path, index=False)
-                st.success("✅ Kunde erfolgreich hinzugefügt!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Fehler beim Hinzufügen: {e}")
-    else:
-        st.error("❌ Bitte gib Kundename und Beschreibung ein.")
-```
-**Erklärung**
-- Dieses Code-Segment verarbeitet die Logik zum Hinzufügen eines neuen Kunden in ein DataFrame und speichert die Daten in einer CSV-Datei.
-- Es prüft, ob die Eingabefelder für den Kundennamen und die Beschreibung ausgefüllt sind.
-- Bei erfolgreicher Validierung wird ein neuer DataFrame erstellt und entweder zu einem bestehenden DataFrame in der Session oder als neuer DataFrame gespeichert.
-- Der Code versucht, die Daten in einer CSV-Datei zu speichern und gibt entsprechende Erfolgsmeldungen oder Warnungen aus.
-
-**Besonderheiten & Randfälle**
-- Eingabefelder dürfen nicht leer sein; sonst wird eine Fehlermeldung ausgegeben.
-- Bei der Speicherung wird geprüft, ob die CSV-Datei existiert; falls nicht, wird sie neu erstellt.
-- Fehler beim Lesen oder Schreiben der CSV-Datei werden abgefangen und führen zu Warnmeldungen.
-- Es wird eine Rückmeldung an den Benutzer gegeben, ob der Kunde erfolgreich hinzugefügt wurde.
-- Bei mehrfachen Aufrufen wird das DataFrame in der Session aktualisiert.
-- Bei einem Fehler während des Hinzufügens wird eine Fehlermeldung angezeigt.
-
-**Hinweise**
-- Achten Sie auf die Validierung der Eingabewerte, um unerwartete Fehler zu vermeiden.
-- Die Verwendung von `pd.concat` kann bei sehr großen DataFrames die Performance beeinträchtigen.
-- Stellen Sie sicher, dass der Pfad zur CSV-Datei korrekt ist, um Speicherfehler zu vermeiden.
-- Berücksichtigen Sie Sicherheitsaspekte beim Umgang mit Benutzereingaben, um SQL-Injection oder ähnliche Angriffe zu verhindern.
-
-**Schnittstellen**
-- **Input:** `kundename`, `land`, `zeit`, `prioritaet`, `description` (Benutzereingaben).
-- **Output:** Aktualisiertes DataFrame in `st.session_state`, CSV-Datei an `local_csv_path`.
-
-### 8. Upload Table Logic
-```python
-with st.form("Tabelle anhängen"):
-    uploaded_file = st.file_uploader("Hänge ein ganze Tabelle an die bestehende!", type=["csv"])
-    submitted = st.form_submit_button("Tabelle anhängen")
-    if submitted:
-        if uploaded_file is not None:
-            try:
-                new_data = pd.read_csv(uploaded_file)
-                if 'df' in st.session_state and st.session_state.df is not None:
-                    st.session_state.df = pd.concat([st.session_state.df, new_data], ignore_index=True)
-                else:
-                    st.session_state.df = new_data
-            except Exception as e:
-                st.error(f"Fehler beim Anhängen der Tabelle: {e}")
-```
-**Erklärung**
-- Dieses Code-Segment ermöglicht das Hochladen einer CSV-Datei, die an ein bestehendes DataFrame angehängt wird.
-- Es wird ein Formular erstellt, in dem der Benutzer eine Datei auswählen und das Hochladen initiieren kann.
-- Nach dem Hochladen wird die Datei eingelesen und, falls ein DataFrame im `session_state` vorhanden ist, mit diesem kombiniert.
-- Bei Fehlern während des Lesevorgangs wird eine Fehlermeldung angezeigt.
-
-**Besonderheiten & Randfälle**
-- Überprüfung, ob die hochgeladene Datei tatsächlich eine CSV-Datei ist.
-- Handhabung des Falls, dass kein DataFrame im `session_state` existiert.
-- Fehlerbehandlung für ungültige CSV-Dateien oder Lesefehler.
-- Möglichkeit, leere oder nicht kompatible DataFrames zu verarbeiten.
-- Sicherstellen, dass die Spalten der neuen Tabelle mit denen des bestehenden DataFrames übereinstimmen.
-- Berücksichtigung von Duplikaten, falls diese in den neuen Daten vorhanden sind.
-
-**Hinweise**
-- Die Performance kann bei sehr großen CSV-Dateien beeinträchtigt werden; eine Vorverarbeitung könnte sinnvoll sein.
-- Sicherheitsaspekte: Validierung der Dateiinhalte, um schädliche Daten zu vermeiden.
-- Wartung: Regelmäßige Überprüfung der Datenintegrität nach dem Anhängen neuer Daten.
-- Nutzung von `ignore_index=True` in `pd.concat`, um Indexkonflikte zu vermeiden.
-
-**Schnittstellen**
-- **Input:** CSV-Datei über den `file_uploader`.
-- **Output:** Aktualisiertes DataFrame im `session_state`, das die neuen Daten enthält.
-
-### 9. Load CSV Logic
-```python
-if 'uploaded_file' in st.session_state:
-    del st.session_state.uploaded_file
-st.session_state.uploader_key += 1
-st.session_state.current_source = "local"
-local_csv_path = st.text_input("Gib den Pfad zur CSV-Datei ein:", "beispiel_daten")
-local_csv_path += ".csv"
-if st.button("Laden"):
-    try:
-        df = load_cached_dataframe(local_csv_path, "local")
-        st.session_state.df = df
-        st.success(f"✅ Lokale CSV geladen: {len(df)} Kunden")
-    except Exception as e:
-        st.error(f"Fehler beim Laden der lokalen CSV: {e}")
-```
-**Erklärung**
-- Dieses Code-Segment ermöglicht das Laden einer CSV-Datei aus dem lokalen Dateisystem in die Anwendung.
-- Zunächst wird geprüft, ob eine vorherige Datei im Session-State vorhanden ist, die dann gelöscht wird.
-- Der Benutzer gibt den Pfad zur CSV-Datei ein, und beim Klicken auf den "Laden"-Button wird die Datei geladen.
-- Bei erfolgreichem Laden wird die Anzahl der geladenen Kunden angezeigt, andernfalls wird eine Fehlermeldung ausgegeben.
-
-**Besonderheiten & Randfälle**
-- Der Pfad zur CSV-Datei muss korrekt eingegeben werden, einschließlich der Dateiendung ".csv".
-- Es wird keine Validierung des Dateiformats oder der Datenstruktur vor dem Laden durchgeführt.
-- Bei einem Fehler während des Ladevorgangs wird eine generische Fehlermeldung angezeigt.
-- Der Session-State wird aktualisiert, was zu unerwartetem Verhalten führen kann, wenn mehrere Ladevorgänge hintereinander durchgeführt werden.
-- Es gibt keine Überprüfung, ob die Datei tatsächlich existiert, bevor der Ladevorgang initiiert wird.
-- Der Benutzer muss sicherstellen, dass die Datei im richtigen Verzeichnis liegt.
-
-**Hinweise**
-- Um die Performance zu verbessern, sollte eine Caching-Strategie für häufig verwendete CSV-Dateien in Betracht gezogen werden.
-- Sicherheitsaspekte wie die Validierung des Dateipfades sind wichtig, um Angriffe durch Pfadmanipulation zu vermeiden.
-- Regelmäßige Wartung des Codes ist erforderlich, um sicherzustellen, dass die Fehlerbehandlung aktuell und informativ bleibt.
-- Eine Benutzerführung zur Eingabe des Dateipfades könnte die Benutzerfreundlichkeit erhöhen.
-
-**Schnittstellen**
-- **Input**: Benutzer gibt den Pfad zur CSV-Datei über ein Textfeld ein.
-- **Output**: Erfolgreiche Ladebestätigung oder Fehlermeldung wird im UI angezeigt; die DataFrame wird im Session-State gespeichert.
-
-### 10. Temporary Info Message
-```python
-if 'start_time' not in st.session_state:
-    st.session_state.start_time = time.time()
-elapsed_time = time.time() - st.session_state.start_time
-if elapsed_time < 5:
-    st.info("ℹ️ Lade eine CSV-Datei über den Button oder Upload, um Daten anzuzeigen.")
-```
-**Erklärung**
-- Dieses Code-Segment zeigt eine temporäre Informationsnachricht an, die für die ersten 5 Sekunden nach dem Laden der Seite sichtbar ist.
-- Es wird überprüft, ob der Schlüssel `start_time` im `session_state` vorhanden ist; falls nicht, wird die aktuelle Zeit gespeichert.
-- Die verstrichene Zeit wird berechnet, und die Nachricht wird nur angezeigt, solange diese Zeit weniger als 5 Sekunden beträgt.
-
-**Besonderheiten & Randfälle**
-- Die Nachricht wird nur einmal pro Sitzung angezeigt, da `start_time` nur einmal gesetzt wird.
-- Bei einem Seitenneuladen wird die Nachricht erneut angezeigt, da `start_time` zurückgesetzt wird.
-- Wenn die Seite länger als 5 Sekunden offen bleibt, wird die Nachricht nicht mehr angezeigt.
-- Die Verwendung von `st.info` sorgt für eine visuelle Hervorhebung der Nachricht.
-- Bei langsamen Verbindungen könnte die Nachricht möglicherweise nicht rechtzeitig angezeigt werden.
-- Nutzer könnten die Nachricht als störend empfinden, wenn sie länger als 5 Sekunden benötigt wird.
-
-**Hinweise**
-- Die Performance ist in der Regel unkritisch, da die Berechnung der Zeit und die Anzeige der Nachricht minimalen Ressourcenverbrauch erfordert.
-- Sicherheitsaspekte sind in diesem Segment nicht relevant, da keine Benutzereingaben verarbeitet werden.
-- Wartung ist einfach, da der Code klar strukturiert ist und leicht angepasst werden kann.
-- Es sollte darauf geachtet werden, dass die Nachricht für die Benutzer hilfreich und nicht irreführend ist.
-
-**Schnittstellen**
-- Input: Keine externen Eingaben, nur interne Zeitmessung.
-- Output: Eine Informationsnachricht, die über die Streamlit-Funktion `st.info` angezeigt wird.
-
-### 11. Display Data Logic
-```python
-if 'df' in st.session_state:
-    df = st.session_state.df
-    st.subheader("📋 Kunden-Daten")
-    st.dataframe(df, use_container_width=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Gesamt Kunden", len(df))
-    with col2:
-        if 'Land' in df.columns:
-            unique_countries = df['Land'].nunique()
-            st.metric("Länder", unique_countries)
-    with col3:
-        if 'Priorität' in df.columns:
-            high_priority = len(df[df['Priorität'] == 'Hoch'])
-            st.metric("Hoch-Priorität", high_priority)
-```
-**Erklärung**
-- Dieses Code-Segment zeigt Kundendaten und relevante Metriken an, die aus einem DataFrame stammen, der im Session-State gespeichert ist.
-- Zunächst wird überprüft, ob der DataFrame (`df`) im Session-State vorhanden ist.
-- Anschließend wird der DataFrame in einer Tabelle angezeigt, gefolgt von drei Metriken: der Gesamtzahl der Kunden, der Anzahl der einzigartigen Länder und der Anzahl der hochpriorisierten Kunden.
-- Die Metriken werden in drei Spalten angeordnet, um eine übersichtliche Darstellung zu gewährleisten.
-
-**Besonderheiten & Randfälle**
-- Der Code prüft, ob der DataFrame im Session-State existiert, um Fehler zu vermeiden.
-- Es wird sichergestellt, dass die Spalten 'Land' und 'Priorität' existieren, bevor auf sie zugegriffen wird.
-- Bei einem leeren DataFrame wird die Gesamtzahl der Kunden als 0 angezeigt.
-- Wenn keine Länder oder Prioritäten vorhanden sind, werden die entsprechenden Metriken nicht angezeigt.
-- Der Code ist auf die Verwendung mit Streamlit optimiert, was eine spezifische Umgebung erfordert.
-- Bei großen DataFrames kann die Darstellung der Daten in der Benutzeroberfläche langsam sein.
-
-**Hinweise**
-- Die Performance kann durch die Größe des DataFrames beeinträchtigt werden; eine Pagination könnte in Betracht gezogen werden.
-- Sicherheitsaspekte sollten berücksichtigt werden, insbesondere beim Umgang mit sensiblen Kundendaten.
-- Regelmäßige Wartung des Codes ist erforderlich, um sicherzustellen, dass die Spaltennamen im DataFrame aktuell sind.
-- Eine Validierung der Daten vor der Anzeige könnte helfen, unerwartete Fehler zu vermeiden.
-
-**Schnittstellen**
-- **Input**: DataFrame (`df`) aus `st.session_state`.
-- **Output**: Anzeige von Metriken und DataFrame in der Streamlit-Oberfläche.
-
-### 12. Training Parameters Setup
-```python
-st.sidebar.subheader("⚙️ Trainingsparameter")
-epochs = st.sidebar.slider("Epochen", 1, 100, 10)
-lr = st.sidebar.select_slider("Learning Rate", options=[1e-5, 1e-4, 1e-3, 1e-2], value=1e-3)
-bs = st.sidebar.select_slider("Batch Size", options=[16, 32, 64, 128], value=128)
-hidden_dim = st.sidebar.slider("Hidden Layer Größe", 50, 500, 100)
-```
-**Erklärung**
-- Dieses Code-Segment erstellt eine Sidebar zur Konfiguration von Trainingsparametern für ein Machine Learning-Modell.
-- Es ermöglicht dem Benutzer, die Anzahl der Epochen, die Lernrate, die Batch-Größe und die Größe der versteckten Schicht über interaktive Steuerelemente einzustellen.
-- Die Parameter werden durch Slider und Auswahlfelder bereitgestellt, was eine benutzerfreundliche Anpassung ermöglicht.
-- Standardwerte sind festgelegt, um einen sinnvollen Startpunkt für das Training zu bieten.
-
-**Besonderheiten & Randfälle**
-- Der Slider für Epochen hat einen minimalen Wert von 1, was sicherstellt, dass das Training nicht übersprungen wird.
-- Die Lernrate ist auf vordefinierte Werte beschränkt, um extreme Werte zu vermeiden, die das Training destabilisieren könnten.
-- Die Batch-Größe ist auf gängige Werte beschränkt, um die Effizienz des Trainings zu optimieren.
-- Die Größe der versteckten Schicht kann zwischen 50 und 500 variieren, was Flexibilität bei der Modellarchitektur bietet.
-- Bei extremen Werten könnte es zu Performance-Problemen kommen, insbesondere bei großen Batch-Größen.
-- Die Benutzeroberfläche könnte überlastet sein, wenn zu viele Parameter gleichzeitig angepasst werden.
-
-**Hinweise**
-- Achten Sie darauf, dass die gewählten Parameter die Trainingszeit und -effizienz beeinflussen können.
-- Eine zu hohe Lernrate kann zu instabilem Training führen, während eine zu niedrige Lernrate die Konvergenz verlangsamen kann.
-- Die Sidebar sollte regelmäßig gewartet werden, um sicherzustellen, dass die Benutzeroberfläche intuitiv bleibt.
-- Sicherheitsaspekte sollten berücksichtigt werden, um zu verhindern, dass Benutzer ungültige Parameter eingeben.
-
-**Schnittstellen**
-- **Input**: Benutzerinteraktionen über die Sidebar (Epochen, Lernrate, Batch-Größe, versteckte Schichtgröße).
-- **Output**: Die konfigurierten Parameter werden an das Haupttraining-Skript übergeben, um das Modell entsprechend zu trainieren.
-
-### 13. Data Preparation
-```python
-device = "mps"
-backbone = load_backbone().to(device)
-if st.toggle("Keywords anwenden"):
-    medium = st.text_input("Keywords für 'medium' Priorität: ", "")
-    high = st.text_input("Keywords für 'high' Priorität: ", "")
-    high_pattern = '|'.join(high.split()) if high else ''
-    med_pattern = '|'.join(medium.split()) if medium else ''
-    text_lc = df['description'].str.lower()
-    conds = [text_lc.str.contains(high_pattern, regex=True), text_lc.str.contains(med_pattern, regex=True)]
-    df['sample_weight'] = np.select(conds, [1.5, 1.2], default=1.0)
-    df['Priorität'] = np.select(conds, ['high', 'medium'], default=df['Priorität'])
-else:
-    df['sample_weight'] = 1.0
-```
-**Erklärung**
-- Dieses Segment bereitet die Daten für das Training vor, indem es Schlüsselwörter anwendet, um die Priorität der Datenpunkte zu bestimmen.
-- Es wird überprüft, ob die Anwendung von Schlüsselwörtern aktiviert ist. Wenn ja, werden die Eingaben für "medium" und "high" Priorität erfasst.
-- Die Schlüsselwörter werden in reguläre Ausdrücke umgewandelt, um die entsprechenden Zeilen in der Beschreibung zu identifizieren.
-- Basierend auf den gefundenen Schlüsselwörtern werden die Gewichtungen (`sample_weight`) und die Priorität (`Priorität`) der Datenpunkte angepasst.
-
-**Besonderheiten & Randfälle**
-- Wenn keine Schlüsselwörter eingegeben werden, bleibt die Priorität unverändert.
-- Die Verwendung von regulären Ausdrücken kann zu unerwarteten Ergebnissen führen, wenn die Eingaben nicht korrekt formatiert sind.
-- Bei großen Datensätzen kann die Verarbeitung der Textsuche zeitintensiv sein.
-- Die Eingabe von Schlüsselwörtern ist optional; das Segment funktioniert auch ohne sie.
-- Die Groß-/Kleinschreibung wird durch die Umwandlung in Kleinbuchstaben ignoriert.
-- Es wird keine Validierung der eingegebenen Schlüsselwörter durchgeführt.
-
-**Hinweise**
-- Achten Sie auf die Performance bei der Verarbeitung großer DataFrames, insbesondere bei der Verwendung von `str.contains()`.
-- Sicherheitsaspekte sollten berücksichtigt werden, um SQL-Injection oder andere Angriffe durch unsichere Eingaben zu vermeiden.
-- Regelmäßige Wartung des Codes ist erforderlich, um sicherzustellen, dass die Regex-Muster aktuell und relevant bleiben.
-- Dokumentation der Schlüsselwörter und ihrer Bedeutung kann die Wartung und Nutzung des Codes erleichtern.
-
-**Schnittstellen**
-- **Input:** `df['description']` (DataFrame mit Beschreibungen), `medium`, `high` (Benutzereingaben für Schlüsselwörter).
-- **Output:** `df['sample_weight']` (angepasste Gewichtungen), `df['Priorität']` (aktualisierte Priorität der Datenpunkte).
-
-### 14. Model Training Logic
-```python
-if st.button("🤖 KI-Modell trainieren"):
-    ...
-    for epoch in range(epochs):
-        ...
-        for (x_t,y_t,w_t),(x_p,y_p,w_p) in zip(t_dl, p_dl):
-            ...
-            loss.backward()
-            ...
-    st.success("Training abgeschlossen!")
-```
-**Erklärung**
-- Dieses Code-Segment implementiert die Logik zum Trainieren eines KI-Modells, ausgelöst durch einen Button-Klick in einer Streamlit-Anwendung.
-- Es initialisiert das Modell, den Optimierer und die Verlustfunktion, und bereitet die Datensätze für Produkte und Prioritäten vor.
-- In einer Schleife über die Epochen wird das Modell trainiert, indem es die Eingabedaten verarbeitet, den Verlust berechnet und die Gewichte aktualisiert.
-- Der Fortschritt wird visuell angezeigt, und nach Abschluss des Trainings wird eine Erfolgsmeldung ausgegeben.
-
-**Besonderheiten & Randfälle**
-- Das Training erfolgt in Batches, was die Speichereffizienz erhöht.
-- Verlust wird für zwei unterschiedliche Datensätze (Produkte und Prioritäten) berechnet und kombiniert.
-- Bei unzureichendem Speicher kann es zu einem Absturz kommen, wenn das Modell oder die Daten nicht auf das Gerät passen.
-- Die Verwendung von `torch.optim.Adam` ermöglicht adaptives Lernen, was bei unterschiedlichen Lernraten vorteilhaft ist.
-- Fortschrittsanzeige und Status-Updates sind in Echtzeit implementiert, was die Benutzererfahrung verbessert.
-- Bei extremen Verlustwerten könnte das Training instabil werden.
-
-**Hinweise**
-- Achten Sie auf die Wahl der Hyperparameter (z.B. Lernrate, Batch-Größe), da diese die Trainingsqualität erheblich beeinflussen.
-- Die Verwendung von `torch.no_grad()` könnte in der Validierungsphase sinnvoll sein, um den Speicherverbrauch zu reduzieren.
-- Regelmäßige Speicherung des Modells während des Trainings kann bei unerwarteten Unterbrechungen hilfreich sein.
-- Überwachen Sie den Verlust, um Überanpassung zu vermeiden; eventuell sollten Validierungsdaten integriert werden.
-
-**Schnittstellen**
-- **Input:** Button-Klick von Streamlit, Datensätze `data['product']` und `data['priority']`.
-- **Output:** Fortschrittsanzeige, Status-Updates und eine Erfolgsmeldung nach Abschluss des Trainings.
-
-### 15. Evaluation Logic
-```python
-model.eval()
-with torch.no_grad():
-    X_test_t = torch.as_tensor(data['product']['X_test'], dtype=torch.float32, device=device)
-    X_test_p = torch.as_tensor(data['priority']['X_test'], dtype=torch.float32, device=device)
-    pred_t = torch.argmax(model(X_test_t, 0), dim=1).cpu().numpy()
-    pred_p = torch.argmax(model(X_test_p, 1), dim=1).cpu().numpy()
-    y_test_product_np = data['product']['y_test'].numpy()
-    y_test_priority_np = data['priority']['y_test'].numpy()
-    st.subheader("🏁 Trainingsergebnisse")
-    col1, col2 = st.columns(2)
-    col1.metric("Product F1-Score", f"{f1_score(y_test_product_np, pred_t, average='weighted'):.4f}")
-    col2.metric("Priority F1-Score", f"{f1_score(y_test_priority_np, pred_p, average='weighted'):.4f}")
-```
-**Erklärung**
-- Dieses Code-Segment evaluiert ein trainiertes Modell, indem es Vorhersagen für Testdaten generiert und die F1-Scores für zwei verschiedene Klassifikationen (Produkt und Priorität) berechnet.
-- Der Evaluationsprozess erfolgt im `eval()`-Modus, um sicherzustellen, dass das Modell keine Gradienten berechnet, was die Performance verbessert.
-- Die Vorhersagen werden durch die Verwendung von `torch.argmax` ermittelt, um die Klassen mit der höchsten Wahrscheinlichkeit auszuwählen.
-- Die Ergebnisse werden in einer Streamlit-Oberfläche angezeigt, wobei die F1-Scores für beide Klassifikationen in zwei Spalten dargestellt werden.
-
-**Besonderheiten & Randfälle**
-- Verwendung von `torch.no_grad()`, um den Speicherverbrauch zu reduzieren und die Berechnungszeit zu optimieren.
-- F1-Score wird mit `average='weighted'` berechnet, was wichtig ist, wenn die Klassen unausgewogen sind.
-- Vorhersagen werden auf die CPU übertragen, was bei der Verwendung von GPUs wichtig ist.
-- Mögliche Fehler bei der Konvertierung von Tensoren in NumPy-Arrays, wenn die Dimensionen nicht übereinstimmen.
-- Streamlit könnte bei großen Datenmengen Performance-Probleme aufweisen.
-- Sicherstellen, dass die Testdaten im richtigen Format vorliegen, um Laufzeitfehler zu vermeiden.
-
-**Hinweise**
-- Überprüfen Sie die Konsistenz der Testdatenformate, um Fehler zu vermeiden.
-- Berücksichtigen Sie die Performance bei der Verwendung von großen Datensätzen; eventuell Batch-Verarbeitung in Betracht ziehen.
-- Achten Sie auf die Sicherheit der Daten, insbesondere bei sensiblen Informationen in den Testdaten.
-- Regelmäßige Wartung des Modells und der Evaluationslogik ist notwendig, um die Genauigkeit über Zeit zu gewährleisten.
-
-**Schnittstellen**
-- **Input:** `data['product']['X_test']`, `data['priority']['X_test']`, `data['product']['y_test']`, `data['priority']['y_test']`
-- **Output:** F1-Scores für Produkt und Priorität, angezeigt in der Streamlit-Oberfläche.
-
-### 16. Classification Report Logic
-```python
-with st.expander("Classification Report ansehen"):
-    st.subheader("Product Classification Report")
-    report_p = classification_report(
-        y_test_product_np, pred_t, 
-        target_names=data['encoders']['product'].classes_, 
-        labels=range(data['n_classes']['product']),
-        output_dict=True
-    )
-    st.dataframe(pd.DataFrame(report_p).transpose())
-    st.subheader("Priority Classification Report")
-    report_pr = classification_report(
-        y_test_priority_np, pred_p, 
-        target_names=data['encoders']['priority'].classes_, 
-        labels=range(data['n_classes']['priority']),
-        output_dict=True
-    )
-    st.dataframe(pd.DataFrame(report_pr).transpose())
-```
-**Erklärung**
-- Dieses Code-Segment generiert und zeigt Klassifikationsberichte für Produkt- und Prioritätsvorhersagen an.
-- Es verwendet die Funktion `classification_report` aus der Bibliothek `sklearn`, um die Leistung der Modelle zu bewerten.
-- Die Berichte beinhalten Metriken wie Präzision, Recall und F1-Score und werden in einem DataFrame für die Anzeige aufbereitet.
-- Die Berichte werden in einem interaktiven Streamlit-Expander präsentiert, um die Benutzeroberfläche übersichtlich zu halten.
-
-**Besonderheiten & Randfälle**
-- Berichte werden nur angezeigt, wenn die Vorhersagen (`pred_t`, `pred_p`) und die Testdaten (`y_test_product_np`, `y_test_priority_np`) korrekt dimensioniert sind.
-- Bei unzureichenden Daten (z.B. keine positiven Klassen) können die Metriken undefiniert sein.
-- Die Verwendung von `output_dict=True` ermöglicht eine einfache Umwandlung in ein DataFrame, was die Flexibilität erhöht.
-- Die Labels müssen mit den Klassen übereinstimmen, andernfalls kann es zu Fehlern kommen.
-- Die Funktion kann bei sehr großen Datensätzen langsam sein, da sie alle Metriken berechnet.
-- Die Ausgabe ist abhängig von der korrekten Konfiguration der Encoder in `data['encoders']`.
-
-**Hinweise**
-- Achten Sie auf die Performance, insbesondere bei großen Datensätzen, um lange Ladezeiten zu vermeiden.
-- Sicherheitsaspekte sollten berücksichtigt werden, insbesondere beim Umgang mit Benutzereingaben und Daten.
-- Regelmäßige Wartung der Encoder-Klassen ist erforderlich, um sicherzustellen, dass sie mit den aktuellen Daten übereinstimmen.
-- Die Verwendung von `st.dataframe` ermöglicht eine interaktive Ansicht, die jedoch bei großen DataFrames die Benutzererfahrung beeinträchtigen kann.
-
-**Schnittstellen**
-- **Input**: 
-  - `y_test_product_np`: Numpy-Array mit den tatsächlichen Produktlabels.
-  - `pred_t`: Numpy-Array mit den vorhergesagten Produktlabels.
-  - `y_test_priority_np`: Numpy-Array mit den tatsächlichen Prioritätslabels.
-  - `pred_p`: Numpy-Array mit den vorhergesagten Prioritätslabels.
-  - `data`: Dictionary mit Encoder-Informationen und Klassenzahlen.
-  
-- **Output**: 
-  - Zwei DataFrames, die die Klassifikationsberichte für Produkt- und Prioritätsvorhersagen darstellen.
-
-### 17. Download Functionality
-```python
-csv = df.to_csv(index=False)
-st.download_button(
-    label="📥 CSV herunterladen",
-    data=csv,
-    file_name=f"kunden_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-    mime="text/csv"
+user_msg_seg = (
+    "Segmentiere NUR. Analysiere NICHT jede Zeile. Gib JSON gemäß Vorgabe zurück.\n\n"
+    f"```python\n{full_code}\n```"
 )
 ```
 **Erklärung**
-- Diese Funktion ermöglicht es Benutzern, einen DataFrame als CSV-Datei herunterzuladen.
-- Der DataFrame wird zunächst in eine CSV-Zeichenkette umgewandelt, wobei der Index ausgeschlossen wird.
-- Anschließend wird ein Download-Button erstellt, der es dem Benutzer ermöglicht, die CSV-Datei mit einem zeitstempelbasierten Dateinamen herunterzuladen.
-- Der MIME-Typ wird auf "text/csv" gesetzt, um den Browser über den Dateityp zu informieren.
+- Die Hilfsblöcke definieren system- und benutzerspezifische Nachrichten zur Segmentierung von Python-Code.
+- Sie geben klare Anweisungen, wie der Code in logische Einheiten unterteilt und im JSON-Format zurückgegeben werden soll.
+- Der system_msg_seg legt die Struktur und die Anforderungen für die Segmentierung fest, während user_msg_seg den Benutzer anweist, sich auf die Segmentierung zu konzentrieren und keine zusätzlichen Analysen durchzuführen.
 
 **Besonderheiten & Randfälle**
-- Der Dateiname enthält einen Zeitstempel, um Kollisionen bei gleichzeitigen Downloads zu vermeiden.
-- Der Index des DataFrames wird nicht in die CSV-Datei aufgenommen, was die Lesbarkeit erhöht.
-- Bei leeren DataFrames wird eine leere CSV-Datei generiert.
-- Der Download-Button ist nur sichtbar, wenn der DataFrame Daten enthält.
-- Bei großen DataFrames kann die Umwandlung in CSV viel Speicher benötigen.
-- Der Benutzer muss über einen unterstützten Browser verfügen, um den Download erfolgreich abzuschließen.
+- Die Nachrichten sind in einem mehrzeiligen String formatiert, was die Lesbarkeit erhöht.
+- Es wird sichergestellt, dass nur JSON zurückgegeben wird, was die Interoperabilität mit anderen Systemen verbessert.
+- Die Anweisungen sind so formuliert, dass sie Missverständnisse bei der Segmentierung minimieren.
+- Es gibt keine Möglichkeit, zusätzliche Texte oder Formatierungen einzufügen, was die Konsistenz gewährleistet.
+- Der Code erwartet, dass der Benutzer den gesamten Codeblock in der Variable `full_code` bereitstellt.
+- Fehlerhafte Eingaben oder unkonventionelle Code-Strukturen könnten zu unerwarteten Ergebnissen führen.
 
 **Hinweise**
-- Die Performance kann bei sehr großen DataFrames beeinträchtigt werden; eine asynchrone Verarbeitung könnte in Betracht gezogen werden.
-- Sicherheitsaspekte sollten beachtet werden, insbesondere bei sensiblen Daten im DataFrame.
-- Regelmäßige Wartung des Codes ist erforderlich, um sicherzustellen, dass die Funktion mit zukünftigen Versionen von Streamlit kompatibel bleibt.
-- Eine Validierung der Daten vor dem Download könnte implementiert werden, um sicherzustellen, dass nur gültige Daten exportiert werden.
+- Die Verwendung von JSON ermöglicht eine einfache Integration in Web-APIs und andere Systeme.
+- Die strikte Vorgabe der Rückgabeform kann die Performance bei großen Codebasen beeinträchtigen, da die Segmentierung möglicherweise aufwendig ist.
+- Sicherheitsaspekte sollten berücksichtigt werden, insbesondere bei der Verarbeitung von Benutzereingaben.
+- Wartung des Codes könnte erforderlich sein, wenn sich die Anforderungen an die Segmentierung ändern.
 
 **Schnittstellen**
-- **Input:** DataFrame (`df`), der exportiert werden soll.
-- **Output:** CSV-Datei, die vom Benutzer heruntergeladen wird.
+- **Input**: Der gesamte Python-Code wird als `full_code` übergeben.
+- **Output**: JSON-Format mit dem Key 'segments', das die segmentierten Teile des Codes enthält.
+
+### 5. I/O
+```python
+resp_seg = client.chat.completions.create(
+    model=model,
+    response_format={"type": "json_object"},
+    messages=[
+        {"role": "system", "content": system_msg_seg},
+        {"role": "user", "content": user_msg_seg},
+    ],
+    temperature=0.1,
+)
+seg_json_text = resp_seg.choices[0].message.content
+seg_data = json.loads(seg_json_text)  # bewusst ohne try/except
+```
+**Erklärung**
+- Dieses Code-Segment sendet eine Segmentierungsanfrage an die OpenAI API, um eine Antwort basierend auf den übermittelten Nachrichten zu erhalten.
+- Es wird ein Chat-Completion-Objekt erstellt, das das Modell, das Antwortformat und die Nachrichteninhalte definiert.
+- Die Antwort wird als JSON-Text extrahiert und in ein Python-Objekt umgewandelt, um die weitere Verarbeitung zu ermöglichen.
+- Die Verwendung von `temperature=0.1` sorgt für deterministischere Antworten.
+
+**Besonderheiten & Randfälle**
+- Fehlende Fehlerbehandlung bei `json.loads`, was zu einem Absturz führen kann, wenn die Antwort kein gültiges JSON ist.
+- Mögliche Zeitüberschreitungen oder Netzwerkfehler bei der API-Anfrage.
+- Die API kann je nach Modell und Anfrage unterschiedliche Antwortzeiten haben.
+- Die Antwort kann leer sein, wenn die Anfrage nicht erfolgreich war.
+- Die Struktur der API-Antwort kann sich ändern, was zu Komplikationen bei der Verarbeitung führen kann.
+- Hohe `temperature`-Werte könnten zu unerwarteten oder ungenauen Antworten führen.
+
+**Hinweise**
+- Überwachung der API-Antwortzeiten zur Optimierung der Performance.
+- Implementierung von Fehlerbehandlungsmechanismen für die JSON-Verarbeitung.
+- Sicherstellen, dass sensible Daten nicht in den Nachrichteninhalten enthalten sind.
+- Regelmäßige Überprüfung der API-Dokumentation auf Änderungen im Antwortformat.
+
+**Schnittstellen**
+- **Input**: `system_msg_seg`, `user_msg_seg` (Nachrichteninhalte für die API-Anfrage).
+- **Output**: `seg_data` (verarbeitetes JSON-Objekt aus der API-Antwort).
+
+### 6. Datenmodelle
+```python
+segments = []
+for item in seg_data.get("segments", []):
+    c = (item.get("code") or "").strip()
+    if c:
+        segments.append({
+            "title": item.get("title") or "Ohne Titel",
+            "code": c,
+            "rationale": item.get("rationale") or ""
+        })
+```
+**Erklärung**
+- Dieses Code-Segment erstellt eine Liste von Segmenten aus den erhaltenen Daten, die in `seg_data` gespeichert sind.
+- Es wird durch die Liste der Segmente iteriert, wobei für jedes Segment der Code, Titel und die Begründung extrahiert werden.
+- Nur Segmente mit einem nicht-leeren Code werden in die `segments`-Liste aufgenommen.
+- Fehlt der Titel, wird standardmäßig "Ohne Titel" verwendet.
+
+**Besonderheiten & Randfälle**
+- Wenn `seg_data` keine Segmente enthält, bleibt die `segments`-Liste leer.
+- Der Code wird nur hinzugefügt, wenn er nicht leer ist (Trimmen von Leerzeichen).
+- Fehlende Titel werden durch einen Standardwert ersetzt.
+- Die Begründung kann leer sein, was keinen Fehler verursacht.
+- Es wird keine Validierung des Codes auf spezifische Formate oder Werte durchgeführt.
+- Es wird nicht überprüft, ob `seg_data` tatsächlich ein Dictionary ist.
+
+**Hinweise**
+- Achten Sie auf die Performance bei großen Datenmengen, da die Iteration über alle Elemente erfolgt.
+- Sicherheitsaspekte wie die Validierung der Eingabedaten sind nicht berücksichtigt.
+- Wartung könnte erschwert werden, wenn die Struktur von `seg_data` sich ändert.
+- Eine Fehlerbehandlung für unerwartete Datenformate könnte hinzugefügt werden.
+
+**Schnittstellen**
+- **Input:** `seg_data` (Dictionary mit einer Liste von Segmenten unter dem Schlüssel "segments").
+- **Output:** `segments` (Liste von Dictionaries, die Titel, Code und rationale Begründung der Segmente enthalten).
+
+### 7. Markdown: Header + TOC
+```python
+doc_lines = []
+doc_lines.append("# Erklärung des Codes\n")
+doc_lines.append(f"Dieses Dokument erklärt {len(segments)} Segmente. Jedes Kapitel enthält eine kurze Erklärung, Besonderheiten, Hinweise und Schnittstellen.\n")
+doc_lines.append("## Inhalt\n")
+for i, seg in enumerate(segments, 1):
+    t = seg["title"]
+    slug = "".join(ch.lower() if ch.isalnum() else "-" for ch in t)
+    slug = "-".join(s for s in slug.split("-") if s)[:80] or "abschnitt"
+    doc_lines.append(f"- [{i}. {t}](#{i}-{slug})")
+doc_lines.append("")
+```
+**Erklärung**
+- Dieses Code-Segment generiert den Header und die Inhaltsübersicht (TOC) für ein Markdown-Dokument.
+- Es erstellt einen Titel und eine kurze Einleitung, gefolgt von einer nummerierten Liste der Segmente.
+- Jedes Segment wird durch einen Link referenziert, der auf den entsprechenden Abschnitt im Dokument verweist.
+- Die Slug-Generierung sorgt dafür, dass die Links im Markdown-Format korrekt formatiert sind.
+
+**Besonderheiten & Randfälle**
+- Slugs werden aus Titeln generiert und in Kleinbuchstaben umgewandelt.
+- Nicht-alphanumerische Zeichen werden durch Bindestriche ersetzt.
+- Slugs werden auf maximal 80 Zeichen begrenzt.
+- Wenn ein Titel leer ist, wird der Standardwert "abschnitt" verwendet.
+- Die TOC wird dynamisch basierend auf der Anzahl der Segmente erstellt.
+- Es wird sichergestellt, dass keine doppelten Bindestriche im Slug entstehen.
+
+**Hinweise**
+- Achten Sie auf die Lesbarkeit der Slugs, um Verwirrung bei Links zu vermeiden.
+- Die Performance kann bei sehr großen Dokumenten beeinträchtigt werden, da alle Segmente durchlaufen werden.
+- Sicherheitsaspekte sollten berücksichtigt werden, um sicherzustellen, dass keine unerwünschten Zeichen in die Slugs gelangen.
+- Regelmäßige Wartung des Codes ist erforderlich, um sicherzustellen, dass Änderungen an Segmenten korrekt in der TOC reflektiert werden.
+
+**Schnittstellen**
+- **Input:** `segments` - eine Liste von Segmenten, die Titel und weitere Informationen enthalten.
+- **Output:** `doc_lines` - eine Liste von Strings, die den Markdown-Inhalt für Header und TOC repräsentieren.
+
+### 8. Hilfsblöcke
+```python
+system_msg_explain = (
+    "Du bist ein präziser Senior-Developer und Tech-Writer. "
+    "Erkläre kompakt, korrekt, mit klaren Bullet Points."
+)
+
+for i, seg in enumerate(segments, 1):
+    user_msg_explain = textwrap.dedent(f"""
+        Erkläre prägnant und technisch korrekt dieses Code-Segment.
+        Sprache: Deutsch.
+        Kontext:
+        - Segment-Nummer: {i}
+        - Titel: {seg['title']}
+        - Kurzbegründung: {seg['rationale'] or "—"}
+
+        Aufgaben:
+        1) 4–8 Sätze zu Zweck und Ablauf.
+        2) Besonderheiten/Randfälle (max. 6 Bullet Points).
+        3) Hinweise (Performance/Sicherheit/Wartung, max. 4 Bullet Points).
+        4) Schnittstellen zu anderen Segmenten (Input/Output), falls erkennbar.
+
+        Gib NUR den folgenden Markdown-Block zurück:
+        ### {i}. {seg['title']}
+        ```python
+        <kurzer relevanter Codeauszug oder Signatur, falls sinnvoll>
+        ```
+        **Erklärung**
+        - ...
+        **Besonderheiten & Randfälle**
+        - ...
+        **Hinweise**
+        - ...
+        **Schnittstellen**
+        - ...
+    """).strip()
+```
+**Erklärung**
+- Das Segment definiert eine Systemnachricht, die als Vorlage für die Erklärung von Code-Segmenten dient.
+- Es iteriert über eine Liste von Segmenten und erstellt für jedes Segment eine strukturierte Benutzeranfrage.
+- Die Benutzeranfrage enthält spezifische Anweisungen zur Erklärung des jeweiligen Segments.
+- Der Code nutzt `textwrap.dedent`, um die Formatierung der mehrzeiligen Zeichenkette zu optimieren.
+
+**Besonderheiten & Randfälle**
+- Die Systemnachricht kann leicht angepasst werden, um unterschiedliche Erklärungsstile zu unterstützen.
+- Bei leeren oder nicht definierten Segmenten wird ein Platzhalter ("—") verwendet.
+- Die Verwendung von `enumerate` ermöglicht eine einfache Indizierung der Segmente.
+- Fehlerhafte oder unvollständige Segmentdaten können zu unerwarteten Ausgaben führen.
+- Die Formatierung der Benutzeranfrage könnte bei langen Segmentbeschreibungen unübersichtlich werden.
+- Es gibt keine Validierung der Segmentinhalte vor der Verarbeitung.
+
+**Hinweise**
+- Die Performance könnte beeinträchtigt werden, wenn die Anzahl der Segmente sehr hoch ist.
+- Sicherheitsaspekte sollten beachtet werden, insbesondere bei der Verarbeitung von Benutzereingaben.
+- Wartung ist einfach, da die Struktur der Benutzeranfrage klar definiert ist.
+- Änderungen an der Systemnachricht erfordern keine Anpassungen an der Logik der Schleife.
+
+**Schnittstellen**
+- Input: `segments` (Liste von Segmenten mit Titel und Begründung).
+- Output: Generierte Benutzeranfragen in Markdown-Format.
+
+### 9. I/O
+```python
+resp_exp = client.chat.completions.create(
+    model=model,
+    temperature=temperature,
+    max_tokens=900,
+    messages=[
+        {"role": "system", "content": system_msg_explain},
+        {"role": "user", "content": user_msg_explain},
+    ],
+)
+block = resp_exp.choices[0].message.content.strip()
+anchor = f"### {i}. {seg['title']}"
+if not block.lstrip().startswith(anchor):
+    block = anchor + "\n\n" + block
+doc_lines.append(block)
+doc_lines.append("")
+```
+**Erklärung**
+- Dieses Code-Segment sendet eine Anfrage an die OpenAI API, um eine Erklärung für ein bestimmtes Segment zu erhalten.
+- Es verwendet das `chat.completions.create`-Methodenaufruf, um die Antwort zu generieren, basierend auf vordefinierten System- und Benutzer-Nachrichten.
+- Die Antwort wird verarbeitet, um sicherzustellen, dass sie mit dem Titel des Segments beginnt, und anschließend in das Dokument eingefügt.
+- Das Ergebnis wird in einer Liste (`doc_lines`) gespeichert, die die Dokumentation aufbaut.
+
+**Besonderheiten & Randfälle**
+- API-Anfragen können fehlschlagen, z.B. bei Netzwerkproblemen oder ungültigen Parametern.
+- Die Antwort könnte leer sein, was zu einem leeren Block führen würde.
+- Die maximale Token-Anzahl (900) könnte die Vollständigkeit der Antwort einschränken.
+- Der `temperature`-Parameter beeinflusst die Kreativität der Antwort und könnte unerwartete Ergebnisse liefern.
+- Mehrere gleichzeitige Anfragen können zu Rate-Limit-Überschreitungen führen.
+- Die Formatierung der Antwort könnte variieren, was die Verarbeitung erschwert.
+
+**Hinweise**
+- Achten Sie auf die API-Nutzungsgrenzen, um Überlastungen zu vermeiden.
+- Implementieren Sie Fehlerbehandlung für API-Anfragen, um Abstürze zu verhindern.
+- Überprüfen Sie die Antwort auf unerwartete Inhalte, um die Qualität der Dokumentation zu gewährleisten.
+- Halten Sie die API-Schlüssel sicher, um unbefugten Zugriff zu vermeiden.
+
+**Schnittstellen**
+- **Input**: `system_msg_explain`, `user_msg_explain` (Nachrichten zur Erklärung).
+- **Output**: `block` (verarbeitete Antwort, die in `doc_lines` eingefügt wird).
+
+### 10. Footer + Schreiben
+```python
+footer = f"---\n*Generiert am:* {time.strftime('%Y-%m-%d %H:%M:%S')}  \n*Modell:* {model} • *Temp:* {temperature} • *Segmente:* {len(segments)}"
+doc_lines.append(footer)
+md = "\n".join(doc_lines)
+
+with open(pfad_md, "w", encoding="utf-8") as f:
+    f.write(md)
+
+print(f"✅ Fertig: {pfad_md}")
+```
+**Erklärung**
+- Dieses Code-Segment fügt einen Footer zu einem Markdown-Dokument hinzu, der Metadaten wie Erstellungsdatum, Modell, Temperatur und Anzahl der Segmente enthält.
+- Der Footer wird an eine Liste von Dokumentzeilen (`doc_lines`) angehängt.
+- Anschließend wird der gesamte Inhalt der Liste in eine Markdown-Datei geschrieben.
+- Nach dem erfolgreichen Schreiben wird eine Abschlussmeldung mit dem Pfad der Ausgabedatei ausgegeben.
+
+**Besonderheiten & Randfälle**
+- Das Datum wird im Format `YYYY-MM-DD HH:MM:SS` generiert, was eine klare Zeitangabe bietet.
+- Der Footer enthält dynamische Werte, die zur Laufzeit bestimmt werden (z.B. `model`, `temperature`).
+- Es wird keine Fehlerbehandlung für das Dateischreiben implementiert, was zu Problemen führen kann, wenn der Pfad ungültig ist.
+- Bei einer leeren `doc_lines`-Liste wird nur der Footer in die Datei geschrieben.
+- Der Code setzt voraus, dass `time`, `model`, `temperature`, `segments` und `pfad_md` korrekt definiert sind.
+- Es wird keine Überprüfung auf Schreibrechte im Zielverzeichnis durchgeführt.
+
+**Hinweise**
+- Die Verwendung von `encoding="utf-8"` stellt sicher, dass auch Sonderzeichen korrekt geschrieben werden.
+- Bei großen Dokumenten kann die Verwendung von `join` ineffizient sein, wenn `doc_lines` sehr groß wird.
+- Es wäre sinnvoll, eine Fehlerbehandlung für den Dateiöffnungs- und Schreibvorgang zu implementieren, um Abstürze zu vermeiden.
+- Die Ausgabe des Pfades könnte in ein Logging-System integriert werden, um die Nachverfolgbarkeit zu verbessern.
+
+**Schnittstellen**
+- `doc_lines`: Input-Liste, die die Markdown-Inhalte speichert.
+- `pfad_md`: Output-Parameter, der den Speicherort der Ausgabedatei definiert.
 
 ---
-*Generiert am:* 2025-09-28 16:53:37  
-*Modell:* gpt-4o-mini • *Temp:* 0.2 • *Segmente:* 17
+*Generiert am:* 2025-09-28 17:32:29  
+*Modell:* gpt-4o-mini • *Temp:* 0.2 • *Segmente:* 10
