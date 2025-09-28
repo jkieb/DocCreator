@@ -35,12 +35,14 @@ python segment_and_explain_linear.py path/to/your_code.py path/to/output.md
 
 ## Ablauf (überblick)
 
+```mermaid
 flowchart LR
-    A[Python-Datei] --> B[Schritt 1: Segmentierung via ChatGPT]
-    B -->|"JSON mit segments (title, code, rationale)"| C[Schritt 2: Erklärung je Segment]
-    C --> D[Markdown zusammenführen]
-    D --> E[output.md]
-
+    A[Python-Datei] --> B[Segmentierung]
+    B --> C[JSON]
+    C --> D[Doku erstellen]
+    D --> E[Markdown]
+    E --> F[output.md]
+```
 
 ## CLI
 
