@@ -27,7 +27,7 @@ export OPENAI_MODEL="gpt-4o-mini"
 export OPENAI_TEMPERATURE="0.2"
 
 # 3) Skript ausführen
-python segment_and_explain_linear.py path/to/your_code.py path/to/output.md
+python doccreator.py path/to/your_code.py path/to/output.md
 ```
 
 * **Input:** Eine Python-Datei (`your_code.py`)
