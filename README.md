@@ -122,6 +122,8 @@ Ja – kürzere Segmente, konservative `max_tokens` in den API-Calls (im Skript 
 **Was, wenn die Segmentierung mal ungenau ist?**
 Da das Skript linear und minimal ist (ohne Error-Handling), passe ggf. den Segmentierungs-Prompt im Skript leicht an (z. B. strengere Segment-Hinweise).
 
+**Gibt es eine Beispielausgabe?**
+[`erklaerung.md`](erklaerung.md)
 ## Lizenz
 
 Auf Anfrage
