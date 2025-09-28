@@ -2,7 +2,7 @@
 # Linear: 1) Segmentiert Python-Code via ChatGPT  2) Erklärt Segmente  3) Schreibt Markdown.
 # Nutzung:
 #   export OPENAI_API_KEY=sk-...
-#   python segment_and_explain_linear.py /pfad/zum/code.py /pfad/zu/output.md
+#   python doccreator.py doccreator.py output.md
 #
 # Abhängigkeiten:
 #   pip install openai python-dotenv
@@ -17,7 +17,7 @@ model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
 if len(sys.argv) < 3:
-    print("Verwendung: python segment_and_explain_linear.py <pfad_zur_datei.py> <output.md>")
+    print("Verwendung: python doccreator.py <pfad_zur_datei.py> <output.md>")
     sys.exit(1)
 
 pfad_code = sys.argv[1]
