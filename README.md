@@ -47,7 +47,7 @@ flowchart LR
 ## CLI
 
 ```bash
-python segment_and_explain_linear.py <pfad_zur_datei.py> <output.md>
+python doccreator.py <pfad_zur_datei.py> <output.md>
 ```
 
 * Beendet sich mit Hinweis auf den Zielpfad, wenn erfolgreich.
