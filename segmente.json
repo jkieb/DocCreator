@@ -1,0 +1,89 @@
+{
+  "segments": [
+    {
+      "title": "Imports",
+      "code": "import streamlit as st\nimport pandas as pd\nimport os\nfrom datetime import datetime\nfrom torch.utils.data import Dataset, DataLoader\nimport torch\nimport numpy as np\nfrom sentence_transformers import SentenceTransformer\nfrom torch import nn\nimport time\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.metrics import f1_score, classification_report\nfrom sklearn.preprocessing import LabelEncoder",
+      "rationale": "Importiert die benötigten Bibliotheken für die Anwendung."
+    },
+    {
+      "title": "Model Configuration",
+      "code": "class Model(nn.Module):\n    def __init__(self, backbone: SentenceTransformer, hidden_dim: int, n_products: int, n_prios: int):\n        super().__init__()\n        self.backbone   = backbone\n        emb_dim         = backbone.get_sentence_embedding_dimension()\n        self.shared     = nn.Linear(emb_dim, hidden_dim)\n        self.product_head = nn.Linear(hidden_dim, n_products)\n        self.prio_head  = nn.Linear(hidden_dim, n_prios)\n\n    def forward(self, features, task_id: int):\n        if isinstance(features, torch.Tensor):\n            embeddings = features\n        elif isinstance(features, (list, str)):\n            embeddings = self.backbone.encode(features, convert_to_tensor=True)\n        else:\n            output = self.backbone(features)\n            if isinstance(output, dict):\n                embeddings = output.get(\n                    'sentence_embedding',\n                    next(iter(output.values()))\n                )\n            else:\n                embeddings = output\n        h = torch.relu(self.shared(embeddings))\n        return self.product_head(h) if task_id == 0 else self.prio_head(h)",
+      "rationale": "Definiert die Architektur des KI-Modells zur Verarbeitung von Textdaten."
+    },
+    {
+      "title": "Load Backbone Function",
+      "code": "@st.cache_resource(show_spinner=\"Lade Basis-Modell...\")\ndef load_backbone(model_name=\"paraphrase-multilingual-MiniLM-L12-v2\"):\n    return SentenceTransformer(model_name)",
+      "rationale": "Lädt und cached das SentenceTransformer-Modell."
+    },
+    {
+      "title": "Dataset Class",
+      "code": "class Dataset(Dataset):\n    def __init__(self, X, y, w=None):\n        if isinstance(X, torch.Tensor):\n            self.X = X.float()\n        else:\n            self.X = torch.from_numpy(X.astype(np.float32))\n        if isinstance(y, torch.Tensor):\n            self.y = y.long()\n        else:\n            self.y = torch.from_numpy(y.astype(np.int64))\n        if w is not None:\n            if isinstance(w, torch.Tensor):\n                self.w = w.float()\n            else:\n                self.w = torch.from_numpy(w.astype(np.float32))\n        else:\n            self.w = None\n    def __len__(self): return len(self.y)\n    def __getitem__(self, idx):\n        if self.w is not None:\n            return self.X[idx], self.y[idx], self.w[idx]\n        return self.X[idx], self.y[idx]",
+      "rationale": "Definiert die Dataset-Klasse für den Dataloader zur Handhabung von Eingabedaten."
+    },
+    {
+      "title": "Load Cached DataFrame Function",
+      "code": "@st.cache_data\ndef load_cached_dataframe(file_path: str, source: str = \"local\"):\n    if source == \"local\":\n        return pd.read_csv(file_path)\n    else:\n        return file_path",
+      "rationale": "Lädt ein DataFrame aus dem Cache oder erstellt einen neuen Cache-Eintrag."
+    },
+    {
+      "title": "Streamlit UI Setup",
+      "code": "st.title(\"👟 Allgemeines Training\")\nif 'uploader_key' not in st.session_state:\n    st.session_state.uploader_key = 0\nst.subheader(\"➕ Neuen Kunden hinzufügen\")\nwith st.form(\"add_row_form\"):\n    col1, col2 = st.columns(2)\n    with col1:\n        kundename = st.text_input(\"Kundename\", placeholder=\"z.B. TechCorp GmbH\")\n        land = st.selectbox(\"Land\", [\"Deutschland\", \"USA\", \"Frankreich\", \"UK\", \"Spanien\", \"Italien\", \"Schweiz\", \"Österreich\", \"Niederlande\", \"Belgien\"])\n        zeit = st.text_input(\"Zeit\", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))\n    with col2:\n        prioritaet = st.selectbox(\"Priorität\", [\"Hoch\", \"Mittel\", \"Niedrig\"])\n        description = st.text_area(\"Beschreibung\", height=100, placeholder=\"Beschreibung des Anliegens...\")\n    submitted = st.form_submit_button(\"Kunden hinzufügen\")",
+      "rationale": "Erstellt die Benutzeroberfläche für die Eingabe neuer Kundendaten."
+    },
+    {
+      "title": "Add Customer Logic",
+      "code": "if submitted:\n        if kundename.strip() and description.strip():\n            try:\n                new_row = pd.DataFrame({\n                    'Kundename': [kundename],\n                    'Land': [land],\n                    'Zeit': [zeit],\n                    'Priorität': [prioritaet],\n                    'description': [description]\n                })\n                if 'df' in st.session_state:\n                    st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)\n                else:\n                    st.session_state.df = new_row\n                if os.path.exists(local_csv_path):\n                    try:\n                        existing_df = pd.read_csv(local_csv_path)\n                        updated_df = pd.concat([existing_df, new_row], ignore_index=True)\n                        updated_df.to_csv(local_csv_path, index=False)\n                        st.success(\"✅ Kunde erfolgreich hinzugefügt und gespeichert!\")\n                    except Exception as e:\n                        st.warning(f\"⚠️ Kunde hinzugefügt, aber Speicherung fehlgeschlagen: {e}\")\n                else:\n                    new_row.to_csv(local_csv_path, index=False)\n                    st.success(\"✅ Kunde erfolgreich hinzugefügt!\")\n                st.rerun()\n            except Exception as e:\n                st.error(f\"Fehler beim Hinzufügen: {e}\")\n        else:\n            st.error(\"❌ Bitte gib Kundename und Beschreibung ein.\")",
+      "rationale": "Verarbeitet die Eingaben des Benutzers und fügt neue Kundendaten hinzu."
+    },
+    {
+      "title": "Upload Table Logic",
+      "code": "with st.form(\"Tabelle anhängen\"):\n    uploaded_file = st.file_uploader(\"Hänge ein ganze Tabelle an die bestehende!\", type=[\"csv\"])\n    submitted = st.form_submit_button(\"Tabelle anhängen\")\n    if submitted:\n        if uploaded_file is not None:\n            try:\n                new_data = pd.read_csv(uploaded_file)\n                if 'df' in st.session_state and st.session_state.df is not None:\n                    st.session_state.df = pd.concat([st.session_state.df, new_data], ignore_index=True)\n                else:\n                    st.session_state.df = new_data\n            except Exception as e:\n                st.error(f\"Fehler beim Anhängen der Tabelle: {e}\")",
+      "rationale": "Ermöglicht das Hochladen einer CSV-Datei zur Erweiterung der bestehenden Daten."
+    },
+    {
+      "title": "Load CSV Logic",
+      "code": "st.subheader(\"📁 CSV-Datei (im selben Folder) laden (alte Tabelle löschen)\")\nif 'uploaded_file' in st.session_state:\n    del st.session_state.uploaded_file\nst.session_state.uploader_key += 1\nst.session_state.current_source = \"local\"\nlocal_csv_path = st.text_input(\"Gib den Pfad zur CSV-Datei ein:\", \"beispiel_daten\")\nlocal_csv_path += \".csv\"\nif st.button(\"Laden\"):\n    try:\n        df = load_cached_dataframe(local_csv_path, \"local\")\n        st.session_state.df = df\n        st.success(f\"✅ Lokale CSV geladen: {len(df)} Kunden\")\n    except Exception as e:\n        st.error(f\"Fehler beim Laden der lokalen CSV: {e}\")",
+      "rationale": "Lädt eine CSV-Datei aus dem lokalen Verzeichnis und aktualisiert die Datenanzeige."
+    },
+    {
+      "title": "Temporary Info Message",
+      "code": "if 'start_time' not in st.session_state:\n    st.session_state.start_time = time.time()\nelapsed_time = time.time() - st.session_state.start_time\nif elapsed_time < 5:\n    st.info(\"ℹ️ Lade eine CSV-Datei über den Button oder Upload, um Daten anzuzeigen.\")",
+      "rationale": "Zeigt eine temporäre Informationsnachricht für die ersten 5 Sekunden an."
+    },
+    {
+      "title": "Display Data",
+      "code": "if 'df' in st.session_state:\n    df = st.session_state.df\n    st.subheader(\"📋 Kunden-Daten\")\n    st.dataframe(df, use_container_width=True)\n    col1, col2, col3 = st.columns(3)\n    with col1:\n        st.metric(\"Gesamt Kunden\", len(df))\n    with col2:\n        if 'Land' in df.columns:\n            unique_countries = df['Land'].nunique()\n            st.metric(\"Länder\", unique_countries)\n    with col3:\n        if 'Priorität' in df.columns:\n            high_priority = len(df[df['Priorität'] == 'Hoch'])\n            st.metric(\"Hoch-Priorität\", high_priority)",
+      "rationale": "Zeigt die Kunden-Daten und einige Metriken in der Benutzeroberfläche an."
+    },
+    {
+      "title": "Training Parameters Setup",
+      "code": "base = 1.0\nw_med = 1.0\nw_high = 2.0\nprio_map = {'low':0,'medium':1,'high':2,'critical':3}\nst.sidebar.subheader(\"⚙️ Trainingsparameter\")\nepochs = st.sidebar.slider(\"Epochen\", 1, 100, 10)\nlr = st.sidebar.select_slider(\"Learning Rate\", options=[1e-5, 1e-4, 1e-3, 1e-2], value=1e-3)\nbs = st.sidebar.select_slider(\"Batch Size\", options=[16, 32, 64, 128], value=128)\nhidden_dim = st.sidebar.slider(\"Hidden Layer Größe\", 50, 500, 100)",
+      "rationale": "Ermöglicht dem Benutzer die Anpassung der Trainingsparameter über die Sidebar."
+    },
+    {
+      "title": "Data Preparation",
+      "code": "device = \"mps\"\nbackbone = load_backbone().to(device)\nif st.toggle(\"Keywords anwenden\"):\n    medium = st.text_input(\"Keywords für 'medium' Priorität: \", \"\")\n    high = st.text_input(\"Keywords für 'high' Priorität: \", \"\")\n    high_pattern = '|'.join(high.split()) if high else ''\n    med_pattern = '|'.join(medium.split()) if medium else ''\n    text_lc = df['description'].str.lower()\n    conds = [text_lc.str.contains(high_pattern, regex=True), text_lc.str.contains(med_pattern, regex=True)]\n    df['sample_weight'] = np.select(conds, [1.5, 1.2], default=1.0)\n    df['Priorität'] = np.select(conds, ['high', 'medium'], default=df['Priorität'])\nelse:\n    df['sample_weight'] = 1.0",
+      "rationale": "Bereitet die Daten für das Training vor und wendet gegebenenfalls Gewichtungen basierend auf Schlüsselwörtern an."
+    },
+    {
+      "title": "Model Training Logic",
+      "code": "if st.button(\"🤖 KI-Modell trainieren\"):\n    st.write(\"Training wird gestartet...\")\n    model = Model(\n        backbone, hidden_dim=hidden_dim,\n        n_products=data['n_classes']['product'],\n        n_prios=data['n_classes']['priority']\n    ).to(device)\n    st.toast(f\"Modell wird trainiert.....\")\n    opt = torch.optim.Adam(model.parameters(), lr=lr)\n    loss_fn = nn.CrossEntropyLoss(reduction='none')\n    t_ds = Dataset(data['product']['X'], data['product']['y'], data['product']['w'])\n    p_ds = Dataset(data['priority']['X'], data['priority']['y'], data['priority']['w'])\n    t_dl = DataLoader(t_ds, batch_size=bs, shuffle=True)\n    p_dl = DataLoader(p_ds, batch_size=bs, shuffle=True)\n    progress_bar = st.progress(0)\n    status_text = st.empty()\n    chart = st.line_chart()\n    for epoch in range(epochs):\n        model.train()\n        total_loss = 0.0\n        for (x_t,y_t,w_t),(x_p,y_p,w_p) in zip(t_dl, p_dl):\n            x_t,y_t,w_t = x_t.to(device), y_t.to(device), w_t.to(device)\n            x_p,y_p,w_p = x_p.to(device), y_p.to(device), w_p.to(device)\n            l_t = (loss_fn(model(x_t,0), y_t) * w_t).mean()\n            l_p = (loss_fn(model(x_p,1), y_p) * w_p).mean()\n            loss = l_t + l_p\n            opt.zero_grad()\n            loss.backward()\n            opt.step()\n            total_loss += loss.item()\n        avg_loss = total_loss / len(t_dl)\n        progress_bar.progress((epoch + 1) / epochs)\n        status_text.text(f\"Epoch {epoch+1}/{epochs} | Loss: {avg_loss:.4f}\")\n        chart.add_rows([avg_loss])\n    st.success(\"Training abgeschlossen!\")",
+      "rationale": "Trainiert das KI-Modell mit den vorbereiteten Daten und zeigt den Fortschritt an."
+    },
+    {
+      "title": "Evaluation Logic",
+      "code": "model.eval()\nwith torch.no_grad():\n    X_test_t = torch.as_tensor(data['product']['X_test'], dtype=torch.float32, device=device)\n    X_test_p = torch.as_tensor(data['priority']['X_test'], dtype=torch.float32, device=device)\n    pred_t = torch.argmax(model(X_test_t, 0), dim=1).cpu().numpy()\n    pred_p = torch.argmax(model(X_test_p, 1), dim=1).cpu().numpy()\n    y_test_product_np = data['product']['y_test'].numpy()\n    y_test_priority_np = data['priority']['y_test'].numpy()\n    st.subheader(\"🏁 Trainingsergebnisse\")\n    col1, col2 = st.columns(2)\n    col1.metric(\"Product F1-Score\", f\"{f1_score(y_test_product_np, pred_t, average='weighted'):.4f}\")\n    col2.metric(\"Priority F1-Score\", f\"{f1_score(y_test_priority_np, pred_p, average='weighted'):.4f}\")",
+      "rationale": "Bewertet das trainierte Modell und zeigt die F1-Scores für die Vorhersagen an."
+    },
+    {
+      "title": "Classification Reports",
+      "code": "with st.expander(\"Classification Report ansehen\"):\n    st.subheader(\"Product Classification Report\")\n    report_p = classification_report(\n        y_test_product_np, pred_t, \n        target_names=data['encoders']['product'].classes_, \n        labels=range(data['n_classes']['product']),\n        output_dict=True\n    )\n    st.dataframe(pd.DataFrame(report_p).transpose())\n    st.subheader(\"Priority Classification Report\")\n    report_pr = classification_report(\n        y_test_priority_np, pred_p, \n        target_names=data['encoders']['priority'].classes_, \n        labels=range(data['n_classes']['priority']),\n        output_dict=True\n    )\n    st.dataframe(pd.DataFrame(report_pr).transpose())",
+      "rationale": "Zeigt die Klassifikationsberichte für die Produkt- und Prioritätsvorhersagen an."
+    },
+    {
+      "title": "Data Export Functionality",
+      "code": "st.subheader(\"💾 Daten exportieren\")\ncsv = df.to_csv(index=False)\nst.download_button(\n    label=\"📥 CSV herunterladen\",\n    data=csv,\n    file_name=f\"kunden_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv\",\n    mime=\"text/csv\"\n)",
+      "rationale": "Ermöglicht dem Benutzer, die Kundendaten als CSV-Datei herunterzuladen."
+    }
+  ]
+}
